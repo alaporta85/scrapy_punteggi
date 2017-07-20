@@ -3,12 +3,22 @@ import pickle
 
 
 class PunteggiSpider(scrapy.Spider):
-    name = "punteggi"
-    start_urls = [
-        'http://leghe.fantagazzetta.com/fantascandalo/calendario'
+    name = "punteggi2"
+    
+    def start_requests(self):
+    urls = [
+        'http://leghe.fantagazzetta.com/fantascandalo/calendario',
+        'http://leghe.fantagazzetta.com/fantascandalo/squadre'
         ]
         
-    def parse(self, response):
+    for url in urls:
+        if 'calendario' in url:
+            yield scrapy.Request(url=url, callback=self.parse_points)
+            
+        elif 'squadre' in url:
+            yield scrapy.Request(url=url, callback=self.parse_teams)
+        
+    def parse_points(self, response):
         
         res_punti = []
         res_teams = []
@@ -34,8 +44,13 @@ class PunteggiSpider(scrapy.Spider):
             
         f = open('points__names.pckl', 'wb')
         pickle.dump(fin_res, f)
-        pickle.dump(list(team_names), f)
         f.close()
+        
+    def parse_teams(self, response):
+        
+        num_of_teams = len(response.css('div.teambox'))        
+        
+        team_names = response.css('div.col-xs-12').css('h3::text')[1:num_of_teams+1].extract()
             
             
             
