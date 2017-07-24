@@ -1,53 +1,29 @@
 import scrapy
 import pickle
 
+'''Scraping dal sito di fantagazzetta dei dati relativi ad ogni squadra:
+   punti fatti per giornata, nomi delle squadre e rispettive rose di
+   calciatori.'''
+
 class Teams_dataSpider(scrapy.Spider):
     name = "teams_data"
     
     def start_requests(self):
         urls = [
-            'http://leghe.fantagazzetta.com/fantascandalo/calendario',
             'http://leghe.fantagazzetta.com/fantascandalo/squadre',
+            'http://leghe.fantagazzetta.com/fantascandalo/calendario',
             'http://leghe.fantagazzetta.com/fantascandalo/tutte-le-rose'
             ]
         
         for url in urls:
-            if 'calendario' in url:
-                yield scrapy.Request(url=url, callback=self.parse_points)
-                
-            elif 'squadre' in url:
+            if 'squadre' in url:
                 yield scrapy.Request(url=url, callback=self.parse_teams)
+                
+            elif 'calendario' in url:
+                yield scrapy.Request(url=url, callback=self.parse_points)
                 
             elif 'tutte-le-rose' in url:
                 yield scrapy.Request(url=url, callback=self.parse_players)
-        
-    def parse_points(self, response):
-        
-        res_punti = []
-        res_teams = []
-        count = 0
-        
-        for day in response.css('div.item'):
-            
-            punti = day.css('table.tbblu').css('tbody').css('td.match')\
-                    .css('span.point::text').extract()
-                   
-            teams = day.css('table.tbblu').css('tbody').css('td.match')\
-                    .css('span').css('a::text').extract()
-                   
-            res_punti += punti
-            res_teams += teams
-            
-        team_names = set(res_teams)
-        fin_res = {i: [] for i in team_names}
-        
-        for team in res_teams:
-            fin_res[team].append(res_punti[count])
-            count += 1
-            
-        f = open('points,fantateams,players.pckl', 'wb')
-        pickle.dump(fin_res, f)
-        f.close()
         
     def parse_teams(self, response):
         
@@ -56,9 +32,38 @@ class Teams_dataSpider(scrapy.Spider):
         team_names = response.css('div.col-xs-12').css('h3::text')\
                      [1:num_of_teams+1].extract()
         
-        f = open('points,fantateams,players.pckl', 'ab')
+        f = open('points,fantateams,players.pckl', 'wb')
         pickle.dump(team_names, f)
         f.close()
+    
+    
+    def parse_points(self, response):
+        
+        f = open('points,fantateams,players.pckl', 'rb')
+        team_names = pickle.load(f)
+        f.close()
+        
+        fin_res = {i: [] for i in team_names}
+        
+        for day in response.css('div.item'):
+            
+            for match in day.css('td.match'):
+                
+                match_data = match.css('::text').extract()
+                
+                team1 = match_data[0]
+                team2 = match_data[6]
+                points1 = match_data[2]
+                points2 = match_data[4]
+                
+                fin_res[team1].append(points1)
+                fin_res[team2].append(points2)
+
+            
+        f = open('points,fantateams,players.pckl', 'ab')
+        pickle.dump(fin_res, f)
+        f.close()
+    
         
     def parse_players(self, response):
         
